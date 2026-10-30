@@ -1,0 +1,12 @@
+# Normalize line endings: LF in the repo, native on checkout.
+* text=auto
+
+# Never normalize these
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Lockfile: always machine-generated, diff it as plain text
+package-lock.json text

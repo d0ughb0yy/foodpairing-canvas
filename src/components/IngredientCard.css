@@ -1,0 +1,130 @@
+.card {
+  width: 240px;
+  background: #fff;
+  border: 1px solid #d7d9dd;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  user-select: none;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 10px 10px 0 0;
+  touch-action: none;
+}
+
+.card-header:hover {
+  background: rgba(61, 127, 217, 0.07);
+}
+
+.card-grip {
+  cursor: grab;
+  color: #b6b9be;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.card-name {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+}
+
+.card-name:focus-visible {
+  outline: 2px solid #3d7fd9;
+  outline-offset: 1px;
+  border-radius: 3px;
+}
+
+.card-delete {
+  border: none;
+  background: none;
+  color: #a33;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+}
+
+.card-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 8px 2px;
+}
+
+.type-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.type-chip:focus-visible {
+  outline: 2px solid #3d7fd9;
+}
+
+.card-descriptors {
+  padding: 2px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.descriptor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.descriptor-type {
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.descriptor-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+}
+
+.descriptor-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 0 4px;
+  line-height: 18px;
+}
+
+.descriptor-chip button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: #a33;
+}
+
+.descriptor-input {
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  padding: 1px 4px;
+  width: 70px;
+  outline: none;
+}

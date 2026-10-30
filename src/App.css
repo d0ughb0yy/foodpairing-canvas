@@ -1,0 +1,60 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #d7d9dd;
+  background: #fff;
+}
+
+.app-title {
+  font-size: 16px;
+  margin: 0;
+  font-weight: 800;
+}
+
+.app-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-actions button {
+  border: 1px solid #d7d9dd;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.app-actions button[aria-pressed="true"] {
+  background: #3d7fd9;
+  border-color: #3d7fd9;
+  color: #fff;
+}
+
+.import-label {
+  border: 1px solid #d7d9dd;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.import-label input {
+  display: none;
+}
+
+.app-canvas {
+  flex: 1;
+  min-height: 0;
+}
