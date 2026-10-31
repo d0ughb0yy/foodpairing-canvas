@@ -38,6 +38,10 @@ function flavorTitle(f: { type: string; sharedDescriptors: string[] }) {
 // Perpendicular offset between parallel flavor lines of the same pair.
 const FAN_STEP = 22;
 
+// Touch gesture resolution: below this many screen pixels a press is a tap
+// (the control under the finger acts); above it, it becomes a card drag.
+const TAP_SLOP = 8;
+
 // Zoom the canvas itself owns — the browser page-zoom is disabled so that
 // pinch gestures and ctrl+wheel always land here.
 export const MIN_ZOOM = 0.5;
@@ -67,15 +71,6 @@ function zoomAt(
   apply(zoom);
 }
 
-type DragState = {
-  id: string;
-  pointerId: number | undefined;
-  startX: number;
-  startY: number;
-  baseX: number;
-  baseY: number;
-};
-
 export function Canvas({
   ingredients,
   showConnections,
@@ -87,7 +82,6 @@ export function Canvas({
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [view, setView] = useState({ zoom: 1 });
-  const dragRef = useRef<DragState | null>(null);
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
   // zoomRef is written together with every setView so gesture handlers read
@@ -221,62 +215,87 @@ export function Canvas({
     }
   };
 
-  const startDrag = (e: React.PointerEvent, ing: Ingredient) => {
-    // Clicks on editable controls are for editing, not dragging: leaving the
-    // default action intact is what lets the input receive focus.
-    const target = e.target as HTMLElement | null;
-    if (target && target.tagName === "INPUT") return;
-    // One drag at a time, primary button only (prototype: no touch doctoring).
-    if (dragRef.current !== null || e.button !== 0) return;
-    e.preventDefault();
+  // Press-anywhere dragging (mouse and touch): pressing anywhere on a card
+  // starts a pending gesture. Movement past TAP_SLOP promotes it to a drag;
+  // lifting before that is a tap, so the control under the pointer keeps
+  // working (chips, buttons, inputs, text selection).
+  const pendingRef = useRef<{
+    id: string;
+    pointerId: number;
+    pointerType: string;
+    startX: number;
+    startY: number;
+    baseX: number;
+    baseY: number;
+    promoted: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
 
-    const state: DragState = {
+  const startPendingDrag = (e: React.PointerEvent, ing: Ingredient) => {
+    // Primary button only (touches report button 0); one gesture at a time.
+    if (e.button !== 0) return;
+    if (pendingRef.current) return;
+    // Presses inside a text field belong to editing (caret placement, text
+    // selection), not to moving the card. Dragging still works everywhere
+    // else on the card.
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    // A fresh gesture can never inherit click suppression from a drag that
+    // ended without a click.
+    suppressClickRef.current = false;
+
+    const state = {
       id: ing.id,
       pointerId: e.pointerId,
+      pointerType: e.pointerType,
       startX: e.clientX,
       startY: e.clientY,
       baseX: ing.x,
       baseY: ing.y,
+      promoted: false,
     };
-    dragRef.current = state;
-    setDragId(state.id);
-
-    // Capture the gesture so releases outside the window still reach us.
-    const el = e.currentTarget;
-    if (typeof el.setPointerCapture === "function") {
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch {
-        // No capture available (e.g. test DOM) — window listeners cover it.
-      }
-    }
+    pendingRef.current = state;
 
     const done = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
       window.removeEventListener("blur", cancel);
-      dragRef.current = null;
+      pendingRef.current = null;
       setDragId(null);
       setDragPos(null);
     };
     const move = (ev: PointerEvent) => {
       if (ev.pointerId !== state.pointerId) return;
-      // Screen delta -> canvas units at the current zoom.
-      const z = zoomRef.current;
-      setDragPos({
-        x: state.baseX + (ev.clientX - state.startX) / z,
-        y: state.baseY + (ev.clientY - state.startY) / z,
-      });
+      const dx = ev.clientX - state.startX;
+      const dy = ev.clientY - state.startY;
+      if (!state.promoted && Math.hypot(dx, dy) >= TAP_SLOP) {
+        state.promoted = true;
+        // The press already reached the control under the finger; eat the
+        // trailing click so the drag doesn't also toggle/type/delete.
+        suppressClickRef.current = true;
+        setDragId(state.id);
+      }
+      if (state.promoted) {
+        const z = zoomRef.current;
+        setDragPos({ x: state.baseX + dx / z, y: state.baseY + dy / z });
+      }
     };
     const up = (ev: PointerEvent) => {
       if (ev.pointerId !== state.pointerId) return;
-      done();
-      const z = zoomRef.current;
-      onChangeIngredient(ing.id, {
-        x: state.baseX + (ev.clientX - state.startX) / z,
-        y: state.baseY + (ev.clientY - state.startY) / z,
-      });
+      if (state.promoted) {
+        const z = zoomRef.current;
+        const x = state.baseX + (ev.clientX - state.startX) / z;
+        const y = state.baseY + (ev.clientY - state.startY) / z;
+        done();
+        onChangeIngredient(state.id, { x, y });
+      } else {
+        // Touch taps keep the tap-to-focus behavior; mouse focus is hover.
+        if (state.pointerType === "touch") {
+          setHoveredId((current) => (current === state.id ? null : state.id));
+        }
+        done();
+      }
     };
     const cancel = (ev: Event) => {
       const pid = (ev as PointerEvent).pointerId;
@@ -397,23 +416,27 @@ export function Canvas({
             data-testid={`card-${ing.id}`}
             onPointerEnter={(e) => {
               // Hover-to-focus is a mouse concept; on touch, a tap toggles it
-              // via the pointerdown handler below (pointerEnter/Leave fire
-              // momentary blips around a tap and would clear it immediately).
+              // (resolved in the pending-gesture handler on pointerup).
               if (e.pointerType !== "touch") setHoveredId(ing.id);
             }}
             onPointerLeave={(e) => {
               if (e.pointerType !== "touch") setHoveredId(null);
             }}
-            onPointerDown={(e) => {
-              if (e.pointerType === "touch") {
-                setHoveredId((current) => (current === ing.id ? null : ing.id));
+            // Capture phase: the grip and delete button stop propagation, and
+            // touch dragging must see the gesture anyway.
+            onPointerDownCapture={(e) => startPendingDrag(e, ing)}
+            onClickCapture={(e) => {
+              // A promoted drag must not also fire the control's click.
+              if (suppressClickRef.current) {
+                suppressClickRef.current = false;
+                e.preventDefault();
+                e.stopPropagation();
               }
             }}
           >
             <IngredientCard
               ingredient={ing}
               onChange={(patch) => onChangeIngredient(ing.id, patch)}
-              onDragStart={(e) => startDrag(e, ing)}
               dragTestId={`drag-${ing.id}`}
               onDelete={
                 onRemoveIngredient

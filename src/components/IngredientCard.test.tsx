@@ -31,12 +31,10 @@ describe("IngredientCard touch targets", () => {
 
 function renderCard(ingredient: Ingredient) {
   const onChange = vi.fn();
-  const onDragStart = vi.fn();
   render(
     <IngredientCard
       ingredient={ingredient}
       onChange={onChange}
-      onDragStart={onDragStart}
     />,
   );
   return { onChange };
@@ -55,7 +53,6 @@ describe("IngredientCard", () => {
       <IngredientCard
         ingredient={WITHOUT_PROFILE}
         onChange={onChange}
-        onDragStart={vi.fn()}
       />,
     );
 
@@ -83,7 +80,6 @@ describe("IngredientCard", () => {
       <IngredientCard
         ingredient={{ ...WITHOUT_PROFILE, profile: { fruity: ["berry"] } }}
         onChange={onChange}
-        onDragStart={vi.fn()}
       />,
     );
 
@@ -108,7 +104,6 @@ describe("IngredientCard", () => {
       <IngredientCard
         ingredient={{ ...WITHOUT_PROFILE, profile: { fruity: [] } }}
         onChange={onChange}
-        onDragStart={vi.fn()}
       />,
     );
 
@@ -128,7 +123,6 @@ describe("IngredientCard", () => {
       <IngredientCard
         ingredient={{ ...WITHOUT_PROFILE, profile: { fruity: ["berry"] } }}
         onChange={onChange}
-        onDragStart={vi.fn()}
       />,
     );
 
@@ -141,7 +135,6 @@ describe("IngredientCard", () => {
       <IngredientCard
         ingredient={{ ...WITHOUT_PROFILE, profile: { fruity: [] } }}
         onChange={vi.fn()}
-        onDragStart={vi.fn()}
       />,
     );
     expect(

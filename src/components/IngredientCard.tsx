@@ -6,9 +6,7 @@ import "./IngredientCard.css";
 export type CardProps = {
   ingredient: Ingredient;
   onChange: (patch: Partial<Ingredient>) => void;
-  // drag: parent Canvas attaches pointer handling via this callback
-  onDragStart: (e: React.PointerEvent) => void;
-  // test hook for the draggable header (used by Canvas tests)
+  // test hook for the card header (used by Canvas tests)
   dragTestId?: string;
   // when provided, the card shows a delete button and calls it on click
   onDelete?: () => void;
@@ -31,7 +29,6 @@ function setProfileType(
 export function IngredientCard({
   ingredient,
   onChange,
-  onDragStart,
   dragTestId,
   onDelete,
 }: CardProps) {
@@ -75,20 +72,10 @@ export function IngredientCard({
     <div className="card">
       <div
         className="card-header"
-        onPointerDown={onDragStart}
         data-testid={dragTestId}
         style={{ cursor: "grab" }}
       >
-        <span
-          className="card-grip"
-          aria-hidden="true"
-          onPointerDown={(e) => {
-            // Pressing the grip starts the drag; stopping propagation keeps
-            // the header handler from starting the same gesture twice.
-            e.stopPropagation();
-            onDragStart(e);
-          }}
-        >
+        <span className="card-grip" aria-hidden="true">
           ⋮
         </span>
         <input
@@ -103,7 +90,6 @@ export function IngredientCard({
             className="card-delete"
             aria-label={`Delete ${ingredient.name}`}
             title={`Delete ${ingredient.name}`}
-            onPointerDown={(e) => e.stopPropagation()}
             onClick={onDelete}
           >
             ×

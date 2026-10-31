@@ -284,7 +284,8 @@ describe("Canvas drag hygiene", () => {
     fireEvent.pointerDown(header, { pointerId: 1, clientX: 100, clientY: 100 });
     // A second finger lands on the card while finger 1 is still down.
     fireEvent.pointerDown(header, { pointerId: 2, clientX: 999, clientY: 999 });
-    // Finger 1 releases — the single legitimate commit.
+    // Finger 1 drags and releases — the single legitimate commit.
+    fireEvent.pointerMove(header, { pointerId: 1, clientX: 115, clientY: 105 });
     fireEvent.pointerUp(header, { pointerId: 1, clientX: 115, clientY: 105 });
     // Finger 2 releases afterwards — must not drive or duplicate the drag.
     fireEvent.pointerUp(header, { pointerId: 2, clientX: 500, clientY: 500 });
@@ -372,6 +373,86 @@ describe("Canvas delete", () => {
 });
 
 describe("Canvas grip dragging", () => {
+  it("drags a card from anywhere on it with the mouse", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    // Press the card body (not the header), move, release.
+    const card = screen.getByTestId("card-s-1");
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 130, clientY: 135 });
+    fireEvent.pointerUp(card, { pointerId: 1, clientX: 130, clientY: 135 });
+
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 50, y: 65 });
+  });
+
+  it("treats a sub-threshold mouse movement as a click, not a drag", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    fireEvent.pointerDown(card, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 104, clientY: 103 });
+    fireEvent.pointerUp(card, { pointerId: 1, clientX: 104, clientY: 103 });
+
+    expect(onChangeIngredient).not.toHaveBeenCalled();
+  });
+
+  it("suppresses the click a mouse drag started on a control", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    const chip = within(card).getByRole("button", { name: "Fruity" });
+    fireEvent.pointerDown(chip, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(chip, { pointerId: 1, clientX: 140, clientY: 100 });
+    fireEvent.pointerUp(chip, { pointerId: 1, clientX: 140, clientY: 100 });
+    fireEvent.click(chip);
+
+    // Only the drag commit — the chip's click was swallowed.
+    expect(onChangeIngredient).toHaveBeenCalledTimes(1);
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 60, y: 30 });
+  });
+
+  it("leaves presses inside a text input to text selection, not dragging", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    const nameInput = within(card).getByDisplayValue("strawberry");
+    // A deliberate text-selection swipe inside the name field must not move
+    // the card (dragging is still available everywhere else on the card).
+    fireEvent.pointerDown(nameInput, { pointerId: 1, clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(nameInput, { pointerId: 1, clientX: 160, clientY: 100 });
+    fireEvent.pointerUp(nameInput, { pointerId: 1, clientX: 160, clientY: 100 });
+
+    expect(onChangeIngredient).not.toHaveBeenCalled();
+  });
+
   it("starts the drag when pressing directly on the grip dots", () => {
     const onChangeIngredient = vi.fn();
     render(
@@ -384,6 +465,7 @@ describe("Canvas grip dragging", () => {
 
     const grip = within(screen.getByTestId("drag-s-1")).getByText("⋮");
     fireEvent.pointerDown(grip, { clientX: 100, clientY: 100, button: 0 });
+    fireEvent.pointerMove(grip, { clientX: 115, clientY: 105, button: 0 });
     fireEvent.pointerUp(grip, { clientX: 115, clientY: 105, button: 0 });
 
     // base (20,30) + delta (15, 5) = (35, 35)
@@ -448,7 +530,7 @@ describe("Canvas dragging", () => {
   // RTL's fireEvent.pointerDown does not forward pointerType in jsdom, so
   // touch taps are dispatched as real PointerEvents (fireEvent still wraps
   // them in act()).
-  const touchDown = (el: Element, pointerId: number) =>
+  const touchDown = (el: Element, pointerId: number, x = 0, y = 0) =>
     fireEvent(
       el,
       new PointerEvent("pointerdown", {
@@ -456,6 +538,20 @@ describe("Canvas dragging", () => {
         cancelable: true,
         pointerId,
         pointerType: "touch",
+        clientX: x,
+        clientY: y,
+      }),
+    );
+
+  const touchUp = (el: Element, pointerId: number, x = 0, y = 0) =>
+    fireEvent(
+      el,
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerId,
+        pointerType: "touch",
+        clientX: x,
+        clientY: y,
       }),
     );
 
@@ -474,6 +570,7 @@ describe("Canvas dragging", () => {
 
     // First tap focuses: strawberry's own line stays bright, chocolate's dims.
     touchDown(screen.getByTestId("card-s-1"), 1);
+    touchUp(screen.getByTestId("card-s-1"), 1);
     expect(
       screen
         .getAllByTestId("conn-line")
@@ -487,6 +584,7 @@ describe("Canvas dragging", () => {
 
     // Second tap on the same card clears the focus.
     touchDown(screen.getByTestId("card-s-1"), 2);
+    touchUp(screen.getByTestId("card-s-1"), 2);
     for (const l of screen.getAllByTestId("conn-line")) {
       expect(l).toHaveAttribute("data-dim", "false");
     }
@@ -506,6 +604,7 @@ describe("Canvas dragging", () => {
     );
 
     touchDown(screen.getByTestId("card-s-1"), 1);
+    touchUp(screen.getByTestId("card-s-1"), 1);
     touchDown(screen.getByTestId("canvas"), 2);
     for (const l of screen.getAllByTestId("conn-line")) {
       expect(l).toHaveAttribute("data-dim", "false");
@@ -519,6 +618,121 @@ describe("Canvas dragging", () => {
         pointerType: "touch",
       }),
     );
+  });
+
+  it("drags a card from anywhere on it on touch", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    // Press the card body (not the header), move 30px, release.
+    const card = screen.getByTestId("card-s-1");
+    touchDown(card, 1, 100, 100);
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 130, clientY: 135 });
+    touchUp(card, 1, 130, 135);
+
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 50, y: 65 });
+  });
+
+  it("does not move a card on a plain touch tap", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    touchDown(card, 1, 100, 100);
+    touchUp(card, 1, 100, 100);
+
+    expect(onChangeIngredient).not.toHaveBeenCalled();
+  });
+
+  it("treats sub-threshold movement as a tap", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    touchDown(card, 1, 100, 100);
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 104, clientY: 103 });
+    touchUp(card, 1, 104, 103);
+
+    expect(onChangeIngredient).not.toHaveBeenCalled();
+  });
+
+  it("suppresses the click a drag started on a control, but taps still click", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const card = screen.getByTestId("card-s-1");
+    const chip = within(card).getByRole("button", { name: "Fruity" });
+
+    // Drag starting on the chip: the trailing click must not toggle it.
+    // This harness passes static props, so the toggle shows up as a profile
+    // patch on the mock — after the drag there must be exactly one call, the
+    // position commit.
+    touchDown(chip, 1, 100, 100);
+    fireEvent.pointerMove(chip, { pointerId: 1, clientX: 140, clientY: 100 });
+    touchUp(chip, 1, 140, 100);
+    fireEvent.click(chip);
+    expect(onChangeIngredient).toHaveBeenCalledTimes(1);
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 60, y: 30 });
+
+    // A plain tap on the chip still lets its click through.
+    touchDown(chip, 2, 100, 100);
+    touchUp(chip, 2, 100, 100);
+    fireEvent.click(chip);
+    expect(
+      onChangeIngredient.mock.calls.some(([, patch]) => "profile" in (patch as object)),
+    ).toBe(true);
+  });
+
+  it("divides touch drag distance by zoom", () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+
+    const canvas = screen.getByTestId("canvas");
+    // Pinch to 1.5x.
+    fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 200 });
+    fireEvent.pointerDown(canvas, { pointerId: 2, pointerType: "touch", clientX: 260, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 135, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 285, clientY: 200 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 2 });
+
+    // 45px on screen = 30 canvas units at 1.5x.
+    const card = screen.getByTestId("card-s-1");
+    touchDown(card, 3, 100, 100);
+    fireEvent.pointerMove(card, { pointerId: 3, clientX: 145, clientY: 145 });
+    touchUp(card, 3, 145, 145);
+
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 50, y: 60 });
   });
 });
 
