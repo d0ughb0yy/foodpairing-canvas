@@ -128,3 +128,32 @@
   width: 70px;
   outline: none;
 }
+
+/* Touch devices get thumb-sized tap targets; mouse layouts are untouched.
+   The card header height is deliberately unchanged — line anchors and drag
+   geometry are pinned against it. */
+@media (pointer: coarse) {
+  .type-chip {
+    width: 26px;
+    height: 26px;
+  }
+
+  .card-grip {
+    padding: 6px 10px;
+    font-size: 18px;
+  }
+
+  .card-delete {
+    font-size: 18px;
+    padding: 0 10px;
+  }
+
+  .descriptor-chip button {
+    padding: 2px 6px;
+  }
+
+  /* No hover highlight on touch — it flashes stale after taps. */
+  .card-header:hover {
+    background: transparent;
+  }
+}

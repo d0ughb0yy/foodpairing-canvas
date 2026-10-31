@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import type { Ingredient } from "../types";
 import IngredientCard from "./IngredientCard";
 
@@ -11,6 +12,22 @@ const WITHOUT_PROFILE: Ingredient = {
   y: 20,
   profile: {},
 };
+
+describe("IngredientCard touch targets", () => {
+  it("grows the tappable controls on coarse-pointer devices", () => {
+    const css = readFileSync("src/components/IngredientCard.css", "utf8");
+    // Capture the whole at-rule: its last line is a lone closing brace.
+    const block =
+      css.match(/@media \(pointer: coarse\)\s*{([\s\S]*?)\n}/)?.[1] ?? "";
+    // Type chip: the everyday toggle, doubles up to a thumb-sized circle.
+    expect(block).toMatch(/\.type-chip[^}]*width:\s*26px/s);
+    expect(block).toMatch(/\.type-chip[^}]*height:\s*26px/s);
+    // Delete x: a padded hit area rather than a bare glyph.
+    expect(block).toMatch(/\.card-delete[^}]*padding:\s*0 10px/s);
+    // Grip: a wide drag zone.
+    expect(block).toMatch(/\.card-grip[^}]*padding:\s*6px 10px/s);
+  });
+});
 
 function renderCard(ingredient: Ingredient) {
   const onChange = vi.fn();

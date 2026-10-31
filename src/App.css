@@ -58,3 +58,42 @@
   flex: 1;
   min-height: 0;
 }
+
+/* Touch devices: buttons get thumb-height tap targets and the entry point
+   for double-tap zoom is removed (the canvas owns zooming entirely). */
+@media (pointer: coarse) {
+  .app-actions button,
+  .import-label {
+    min-height: 38px;
+    padding: 8px 14px;
+    touch-action: manipulation;
+  }
+}
+
+/* Narrow screens: let the controls wrap onto a second row instead of
+   squeezing five buttons into one line. */
+@media (max-width: 480px) {
+  .app-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .app-title {
+    min-width: 100%;
+  }
+
+  /* The action row alone is ~410px wide, so it must wrap with the header and
+     give the buttons room to share the row instead of overflowing. */
+  .app-actions {
+    margin-left: 0;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .app-actions button,
+  .import-label {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}

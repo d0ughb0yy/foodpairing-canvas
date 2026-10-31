@@ -445,4 +445,201 @@ describe("Canvas dragging", () => {
       y: 35,
     });
   });
+  // RTL's fireEvent.pointerDown does not forward pointerType in jsdom, so
+  // touch taps are dispatched as real PointerEvents (fireEvent still wraps
+  // them in act()).
+  const touchDown = (el: Element, pointerId: number) =>
+    fireEvent(
+      el,
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        pointerId,
+        pointerType: "touch",
+      }),
+    );
+
+  it("taps a card on touch to toggle the focus dim", () => {
+    render(
+      <Canvas
+        ingredients={[
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: ["tropical"] } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: ["maple"] } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: ["maple"], fruity: ["tropical"] } },
+        ]}
+        showConnections={true}
+        onChangeIngredient={vi.fn()}
+      />,
+    );
+
+    // First tap focuses: strawberry's own line stays bright, chocolate's dims.
+    touchDown(screen.getByTestId("card-s-1"), 1);
+    expect(
+      screen
+        .getAllByTestId("conn-line")
+        .find((l) => l.getAttribute("data-type") === "fruity"),
+    ).toHaveAttribute("data-dim", "false");
+    expect(
+      screen
+        .getAllByTestId("conn-line")
+        .find((l) => l.getAttribute("data-type") === "caramellic"),
+    ).toHaveAttribute("data-dim", "true");
+
+    // Second tap on the same card clears the focus.
+    touchDown(screen.getByTestId("card-s-1"), 2);
+    for (const l of screen.getAllByTestId("conn-line")) {
+      expect(l).toHaveAttribute("data-dim", "false");
+    }
+  });
+
+  it("tapping the canvas background clears the touch focus", () => {
+    render(
+      <Canvas
+        ingredients={[
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: ["tropical"] } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: ["maple"] } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: ["maple"], fruity: ["tropical"] } },
+        ]}
+        showConnections={true}
+        onChangeIngredient={vi.fn()}
+      />,
+    );
+
+    touchDown(screen.getByTestId("card-s-1"), 1);
+    touchDown(screen.getByTestId("canvas"), 2);
+    for (const l of screen.getAllByTestId("conn-line")) {
+      expect(l).toHaveAttribute("data-dim", "false");
+    }
+    // End the background gesture so no window listeners outlive the test.
+    fireEvent(
+      screen.getByTestId("canvas"),
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerId: 2,
+        pointerType: "touch",
+      }),
+    );
+  });
 });
+
+describe("Canvas pinch zoom", () => {
+  const renderCanvas = () => {
+    const onChangeIngredient = vi.fn();
+    render(
+      <Canvas
+        ingredients={FRUITY_PAIR}
+        showConnections={false}
+        onChangeIngredient={onChangeIngredient}
+      />,
+    );
+    // Take the newest canvas in case older renders linger in this test.
+    const canvas = screen.getAllByTestId("canvas").pop()!;
+    const world = () => within(canvas).getByTestId("canvas-world");
+    return { canvas, world, onChangeIngredient };
+  };
+
+  it("zooms in with ctrl+wheel at the cursor", () => {
+    const { canvas, world } = renderCanvas();
+    fireEvent.wheel(canvas, { deltaY: -120, ctrlKey: true });
+    expect(world().style.transform).toBe("scale(1.2)");
+  });
+
+  it("zooms out with ctrl+wheel", () => {
+    const { canvas, world } = renderCanvas();
+    fireEvent.wheel(canvas, { deltaY: 120, ctrlKey: true });
+    expect(world().style.transform).toBe("scale(0.8333333333333334)");
+  });
+
+  it("clamps zoom within its bounds", () => {
+    const { canvas, world } = renderCanvas();
+    for (let i = 0; i < 7; i++) {
+      fireEvent.wheel(canvas, { deltaY: -120, ctrlKey: true });
+    }
+    expect(world().style.transform).toBe("scale(3)");
+
+    const { canvas: canvas2, world: world2 } = renderCanvas();
+    for (let i = 0; i < 4; i++) {
+      fireEvent.wheel(canvas2, { deltaY: 120, ctrlKey: true });
+    }
+    expect(world2().style.transform).toBe("scale(0.5)");
+  });
+
+  it("pinches with two fingers to zoom around the finger midpoint", () => {
+    const { canvas, world } = renderCanvas();
+    fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 200 });
+    fireEvent.pointerDown(canvas, { pointerId: 2, pointerType: "touch", clientX: 260, clientY: 200 });
+    // Spread from 100px apart to 150px apart, midpoint fixed at (210,200).
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 135, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 285, clientY: 200 });
+    expect(world().style.transform).toBe("scale(1.5)");
+  });
+
+  it("ends the pinch cleanly so a fresh one still works", () => {
+    const { canvas, world } = renderCanvas();
+    fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 200 });
+    fireEvent.pointerDown(canvas, { pointerId: 2, pointerType: "touch", clientX: 260, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 135, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 285, clientY: 200 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 2 });
+
+    fireEvent.pointerDown(canvas, { pointerId: 3, pointerType: "touch", clientX: 160, clientY: 200 });
+    fireEvent.pointerDown(canvas, { pointerId: 4, pointerType: "touch", clientX: 260, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 3, clientX: 135, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 4, clientX: 285, clientY: 200 });
+    expect(world().style.transform).toBe("scale(2.25)");
+  });
+
+  it("drags cards accurately while zoomed (delta divided by zoom)", () => {
+    const { canvas, world, onChangeIngredient } = renderCanvas();
+    // Zoom to 1.5 via the pinch gesture.
+    fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 200 });
+    fireEvent.pointerDown(canvas, { pointerId: 2, pointerType: "touch", clientX: 260, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 135, clientY: 200 });
+    fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 285, clientY: 200 });
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
+    fireEvent.pointerUp(canvas, { pointerId: 2 });
+    expect(world().style.transform).toBe("scale(1.5)");
+
+    // Drag strawberry 45px on screen = 45/1.5 = 30 canvas units.
+    const header = screen.getByTestId("drag-s-1");
+    fireEvent.pointerDown(header, { clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(header, { clientX: 145, clientY: 145 });
+    fireEvent.pointerUp(header, { clientX: 145, clientY: 145 });
+
+    // base (20,30) + 30 = (50,60)
+    expect(onChangeIngredient).toHaveBeenCalledWith("s-1", { x: 50, y: 60 });
+  });
+
+  it("keeps the empty hint as a viewport overlay, outside the pannable world", () => {
+    render(
+      <Canvas
+        ingredients={[]}
+        showConnections={false}
+        onChangeIngredient={vi.fn()}
+        emptyHint="Add your first ingredient to start planning the dish"
+      />,
+    );
+
+    const hint = screen.getByText("Add your first ingredient to start planning the dish");
+    // Not inside the scaled/pannable world, or it scrolls and zooms away with
+    // the canvas and can sit outside a narrow viewport.
+    expect(hint.closest('[data-testid="canvas-world"]')).toBeNull();
+    expect(hint.closest('[data-testid="canvas"]')).toBeNull();
+  });
+
+  it("pins the touch gestures stylesheet rules", () => {
+    const css = readFileSync("src/components/Canvas.css", "utf8");
+    const scrollRule = css.match(/\.canvas-scroll\s*{[^}]*}/)?.[0] ?? "";
+    expect(scrollRule).toContain("touch-action: none");
+    const worldRule = css.match(/\.canvas-world\s*{[^}]*}/)?.[0] ?? "";
+    expect(worldRule).toContain("transform-origin");
+  });
+
+  it("disables browser pinch zoom (the app now owns zooming)", () => {
+    const html = readFileSync("index.html", "utf8");
+    expect(html).toContain("user-scalable=no");
+    expect(html).toContain("maximum-scale=1");
+  });
+});
+

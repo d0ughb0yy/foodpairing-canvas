@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import App from "./App";
 
 const STORAGE_KEY = "foodpairing-canvas-v1";
@@ -10,6 +11,17 @@ afterEach(() => {
 });
 
 describe("App header", () => {
+  it("wraps its controls on narrow screens", () => {
+    const css = readFileSync("src/App.css", "utf8");
+    const block =
+      css.match(/@media \(max-width: 480px\)\s*{([\s\S]*?)\n}/)?.[1] ?? "";
+    expect(block).toMatch(/\.app-header[^}]*flex-wrap:\s*wrap/s);
+    expect(block).toMatch(/\.app-header[^}]*gap:\s*8px/s);
+    // The action row must wrap too — five controls exceed ~420px of width.
+    expect(block).toMatch(/\.app-actions[^}]*flex-wrap:\s*wrap/s);
+    expect(block).toMatch(/\.app-actions[^}]*width:\s*100%/s);
+  });
+
   it("shows title, connection toggle, add/export/import controls", () => {
     render(<App />);
     expect(screen.getByText(/foodpairing canvas/i)).toBeVisible();
