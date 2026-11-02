@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { MultiDishState, AppState, Dish } from "../types";
+import type { MultiDishState, AppState } from "../types";
 import { loadState, parseImport, saveState } from "./storage";
 
 const STATE: AppState = {
@@ -9,16 +9,6 @@ const STATE: AppState = {
   ],
 };
 
-const MULTI_STATE: MultiDishState = {
-  dishes: [
-    {
-      id: "4f1a3c0f-eb9d-4677-9f81-b937033854ad",
-      name: "Dish 1",
-      ingredients: STATE.ingredients,
-    },
-  ],
-  activeDishId: "4f1a3c0f-eb9d-4677-9f81-b937033854ad",
-};
 
 const MULTI_STATE_TWO: MultiDishState = {
   dishes: [
@@ -39,16 +29,6 @@ const MULTI_STATE_TWO: MultiDishState = {
   activeDishId: "dish1",
 };
 
-const OLD_STATE: MultiDishState = {
-  dishes: [
-    {
-      id: "4f1a3c0f-eb9d-4677-9f81-b937033854ad",
-      name: "Dish 1",
-      ingredients: STATE.ingredients,
-    },
-  ],
-  activeDishId: "4f1a3c0f-eb9d-4677-9f81-b937033854ad",
-};
 
 afterEach(() => {
   localStorage.clear();

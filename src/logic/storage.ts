@@ -1,5 +1,5 @@
 import { AROMA_TYPES } from "../config";
-import type { AppState, Ingredient, Profile, Dish, MultiDishState } from "../types";
+import type { AppState, Profile, Dish, MultiDishState } from "../types";
 
 const STORAGE_KEY = "foodpairing-canvas-v1";
 
@@ -238,13 +238,3 @@ export function downloadExport(state: MultiDishState): void {
   URL.revokeObjectURL(url);
 }
 
-function getNextDishName(dishes: Dish[]): string {
-  const existingNames = dishes.map((d) => d.name);
-  let i = 1;
-  let name = `Dish ${i}`;
-  while (existingNames.includes(name)) {
-    i++;
-    name = `Dish ${i}`;
-  }
-  return name;
-}

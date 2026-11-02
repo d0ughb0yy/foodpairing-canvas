@@ -25,7 +25,6 @@ export default function TabBar({
   const [editingName, setEditingName] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const activeDish = dishes.find((d) => d.id === activeDishId);
 
   useEffect(() => {
     if (editingDishId && inputRef.current) {
