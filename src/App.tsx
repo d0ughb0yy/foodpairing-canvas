@@ -1,19 +1,60 @@
 import { useCallback, useEffect, useState } from "react";
 import Canvas from "./components/Canvas";
+import TabBar from "./components/TabBar";
 import { downloadExport, loadState, parseImport, saveState } from "./logic/storage";
-import type { Ingredient } from "./types";
+import type { Ingredient, Dish } from "./types";
 import "./App.css";
 
 export default function App() {
-  const [state, setState] = useState(loadState);
+  const [multiState, setMultiState] = useState(loadState);
   const [showConnections, setShowConnections] = useState(false);
 
   useEffect(() => {
-    saveState(state);
-  }, [state]);
+    saveState(multiState);
+  }, [multiState]);
+
+  const activeDish = multiState.dishes.find((d) => d.id === multiState.activeDishId);
+
+  const createDish = useCallback(() => {
+    const newDish: Dish = {
+      id: crypto.randomUUID(),
+      name: "New Dish",
+      ingredients: [],
+    };
+    setMultiState((prev) => ({
+      dishes: [...prev.dishes, newDish],
+      activeDishId: newDish.id,
+    }));
+  }, []);
+
+  const renameDish = useCallback((dishId: string, name: string) => {
+    setMultiState((prev) => ({
+      ...prev,
+      dishes: prev.dishes.map((dish) =>
+        dish.id === dishId ? { ...dish, name } : dish
+      ),
+    }));
+  }, []);
+
+  const closeDish = useCallback((dishId: string) => {
+    setMultiState((prev) => {
+      if (prev.dishes.length <= 1) return prev; // Never close the last dish
+      
+      const newDishes = prev.dishes.filter((d) => d.id !== dishId);
+      const newActiveId = prev.activeDishId === dishId 
+        ? newDishes[0].id 
+        : prev.activeDishId;
+      
+      return {
+        dishes: newDishes,
+        activeDishId: newActiveId,
+      };
+    });
+  }, []);
 
   const addIngredient = () => {
-    const n = state.ingredients.length;
+    if (!activeDish) return;
+    const n = activeDish.ingredients.length;
     const ingredient: Ingredient = {
       id: crypto.randomUUID(),
       name: "New ingredient",
@@ -21,26 +62,52 @@ export default function App() {
       y: 40 + Math.floor(n / 4) * 260,
       profile: {},
     };
-    setState((s) => ({ ingredients: [...s.ingredients, ingredient] }));
+    setMultiState((prev) => ({
+      ...prev,
+      dishes: prev.dishes.map((dish) =>
+        dish.id === activeDish.id
+          ? { ...dish, ingredients: [...dish.ingredients, ingredient] }
+          : dish
+      ),
+    }));
   };
 
   const onChangeIngredient = useCallback(
     (id: string, patch: Partial<Ingredient>) => {
-      setState((s) => ({
-        ingredients: s.ingredients.map((i) =>
-          i.id === id ? { ...i, ...patch } : i,
+      setMultiState((prev) => ({
+        ...prev,
+        dishes: prev.dishes.map((dish) =>
+          dish.id === activeDish?.id
+            ? {
+                ...dish,
+                ingredients: dish.ingredients.map((i) =>
+                  i.id === id ? { ...i, ...patch } : i
+                ),
+              }
+            : dish
         ),
       }));
     },
-    [],
+    [activeDish?.id],
   );
+
+  const onRemoveIngredient = useCallback((id: string) => {
+    setMultiState((prev) => ({
+      ...prev,
+      dishes: prev.dishes.map((dish) =>
+        dish.id === activeDish?.id
+          ? { ...dish, ingredients: dish.ingredients.filter((i) => i.id !== id) }
+          : dish
+      ),
+    }));
+  }, [activeDish?.id]);
 
   const onImport = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     try {
       const text = await files[0].text();
       const imported = parseImport(text);
-      setState(imported);
+      setMultiState(imported);
     } catch {
       window.alert("That file doesn't look like a canvas export.");
     }
@@ -62,7 +129,7 @@ export default function App() {
           <button type="button" onClick={addIngredient}>
             Add ingredient
           </button>
-          <button type="button" onClick={() => downloadExport(state)}>
+          <button type="button" onClick={() => downloadExport(multiState)}>
             Export
           </button>
           <label className="import-label">
@@ -79,16 +146,20 @@ export default function App() {
           </label>
         </div>
       </header>
+      <TabBar
+        dishes={multiState.dishes}
+        activeDishId={multiState.activeDishId}
+        onSwitchDish={(dishId) => setMultiState((prev) => ({ ...prev, activeDishId: dishId }))}
+        onCreateDish={createDish}
+        onRenameDish={renameDish}
+        onCloseDish={closeDish}
+      />
       <main className="app-canvas">
         <Canvas
-          ingredients={state.ingredients}
+          ingredients={activeDish?.ingredients || []}
           showConnections={showConnections}
           onChangeIngredient={onChangeIngredient}
-          onRemoveIngredient={(id) =>
-            setState((s) => ({
-              ingredients: s.ingredients.filter((i) => i.id !== id),
-            }))
-          }
+          onRemoveIngredient={onRemoveIngredient}
           emptyHint="Add your first ingredient to start planning the dish"
         />
       </main>

@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readFileSync } from "node:fs";
 import App from "./App";
 
 const STORAGE_KEY = "foodpairing-canvas-v1";
@@ -12,12 +11,11 @@ afterEach(() => {
 
 describe("App header", () => {
   it("wraps its controls on narrow screens", () => {
-    const css = readFileSync("src/App.css", "utf8");
+    const css = require('fs').readFileSync("src/App.css", "utf8");
     const block =
       css.match(/@media \(max-width: 480px\)\s*{([\s\S]*?)\n}/)?.[1] ?? "";
     expect(block).toMatch(/\.app-header[^}]*flex-wrap:\s*wrap/s);
     expect(block).toMatch(/\.app-header[^}]*gap:\s*8px/s);
-    // The action row must wrap too — five controls exceed ~420px of width.
     expect(block).toMatch(/\.app-actions[^}]*flex-wrap:\s*wrap/s);
     expect(block).toMatch(/\.app-actions[^}]*width:\s*100%/s);
   });
@@ -54,10 +52,13 @@ describe("App header", () => {
     await user.click(screen.getByRole("button", { name: /add ingredient/i }));
     const raw = localStorage.getItem(STORAGE_KEY);
     expect(raw).not.toBeNull();
-    expect(JSON.parse(raw as string).ingredients).toHaveLength(1);
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.dishes).toHaveLength(1);
+    expect(parsed.dishes[0].ingredients).toHaveLength(1);
+    expect(parsed.dishes[0].ingredients[0].name).toBe("New ingredient");
   });
 
-  it("restores a saved state on mount", () => {
+  it("restores a saved state on mount (migration from old format)", () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
@@ -80,11 +81,16 @@ describe("App header", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: /add ingredient/i }));
-    await user.click(screen.getByRole("button", { name: /delete new ingredient/i }));
+    
+    // Find the delete button on the ingredient card by aria-label
+    const deleteButtons = screen.getAllByRole("button", { name: /Delete/ });
+    await user.click(deleteButtons[0]);
+    
     expect(screen.queryByDisplayValue("New ingredient")).toBeNull();
-    expect(
-      JSON.parse(localStorage.getItem(STORAGE_KEY) as string).ingredients,
-    ).toHaveLength(0);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw as string);
+    expect(parsed.dishes[0].ingredients).toHaveLength(0);
   });
 
   it("rejects an invalid import file with an alert and keeps the canvas", async () => {
@@ -104,5 +110,62 @@ describe("App header", () => {
     expect(screen.getByDisplayValue("New ingredient")).toBeVisible();
 
     (window.alert as ReturnType<typeof vi.spyOn>).mockRestore();
+  });
+});
+
+describe("TabBar", () => {
+  it("creates and switches between dishes", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    
+    // Initially one dish (New Dish from default state) should exist
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    
+    // Create a new dish
+    const newDishButton = screen.getByTitle("New dish");
+    await user.click(newDishButton);
+    
+    // Now there should be two dishes
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    
+    // Click the second tab (New Dish)
+    await user.click(screen.getAllByRole("tab")[1]);
+    
+    // The second dish should be active
+    expect(screen.getByRole("tab", { name: /New Dish, 0 ingredients/ })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("renames a dish on double-click", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    
+    // Find the first tab (New Dish) and double-click it using the aria-label
+    const firstTab = screen.getAllByRole("tab")[0];
+    const tabName = firstTab.querySelector(".tab-name");
+    await user.dblClick(tabName as HTMLElement);
+    
+    const input = screen.getByRole("textbox");
+    await user.type(input, " {backspace}My New Dish");
+    await user.keyboard("{Enter}");
+    
+    expect(screen.getByRole("tab", { name: /My New Dish, 0 ingredients/ })).toBeInTheDocument();
+  });
+
+  it("closes a dish", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    
+    // Add a second dish
+    await user.click(screen.getByTitle("New dish"));
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    
+    // Close the first dish (New Dish) - find the close button in the first tab
+    const firstTab = screen.getAllByRole("tab")[0];
+    const closeButton = firstTab.querySelector(".tab-close");
+    await user.click(closeButton as HTMLElement);
+    
+    // Only one dish should remain (the second New Dish)
+    expect(screen.getAllByRole("tab")).toHaveLength(1);
+    expect(screen.getByRole("tab", { name: /New Dish, 0 ingredients/ })).toBeInTheDocument();
   });
 });

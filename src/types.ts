@@ -31,3 +31,14 @@ export type SharedFlavor = {
   type: AromaTypeId;
   sharedDescriptors: string[];
 };
+
+export type Dish = {
+  id: string;
+  name: string;
+  ingredients: Ingredient[];
+};
+
+export type MultiDishState = {
+  dishes: Dish[];
+  activeDishId: string;
+};

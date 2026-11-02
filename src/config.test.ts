@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { AROMA_TYPES, DESCRIPTORS } from "./config";
 
 const EXPECTED = [
-  "fruity", "citrus", "floral", "green", "vegetable", "herbal",
-  "caramellic", "roasted", "nutty", "spicy", "woody", "cheesy",
+  "fruity", "citrus", "floral", "green", "herbal", "vegetable",
+  "caramellic", "roasted", "nutty", "woody", "spicy", "cheesy",
   "animal", "chemical",
 ] as const;
 
@@ -29,8 +29,8 @@ describe("AROMA_TYPES", () => {
 describe("DESCRIPTORS", () => {
   it("seeds the ten core types with at least 4 descriptors each", () => {
     const required = [
-      "fruity", "citrus", "floral", "green", "vegetable", "herbal",
-      "caramellic", "roasted", "nutty", "spicy",
+      "fruity", "citrus", "floral", "green", "herbal", "vegetable",
+      "caramellic", "roasted", "nutty", "woody",
     ] as const;
     for (const id of required) {
       expect(DESCRIPTORS[id]?.length).toBeGreaterThanOrEqual(4);
