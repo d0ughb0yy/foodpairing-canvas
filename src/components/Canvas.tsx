@@ -314,6 +314,30 @@ export function Canvas({
     600,
     ...ingredients.map((i) => i.y + 320),
   );
+
+  // Hovering a card names its neighbours and the aromas they share, so the
+  // lines can be checked without decoding every colour.
+  const focusSummary = (() => {
+    if (!showConnections || hoveredId === null) return null;
+    const focused = ingredients.find((ingredient) => ingredient.id === hoveredId);
+    if (!focused) return null;
+
+    const connections = ingredients
+      .filter((ingredient) => ingredient.id !== focused.id)
+      .map((other) => ({
+        other,
+        shared: sharedAromaTypes(focused.profile, other.profile),
+      }))
+      .filter(({ shared }) => shared.length > 0)
+      .sort(
+        (c1, c2) =>
+          c2.shared.length - c1.shared.length ||
+          c1.other.name.localeCompare(c2.other.name),
+      );
+
+    return { focused, connections };
+  })();
+
   if (showConnections) {
     for (let i = 0; i < ingredients.length; i++) {
       for (let j = i + 1; j < ingredients.length; j++) {
@@ -353,7 +377,7 @@ export function Canvas({
               key={`${a.id}--${b.id}--${type}`}
               d={`M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`}
               stroke={TYPE_COLORS.get(type) ?? "#8a8f98"}
-              strokeWidth={1.5}
+              strokeWidth={2.5}
               data-type={type}
               data-dim={dim ? "true" : "false"}
               data-testid="conn-line"
@@ -406,7 +430,9 @@ export function Canvas({
         return (
           <div
             key={ing.id}
-            className="canvas-item"
+            className={`canvas-item${
+              showConnections && hoveredId === ing.id ? " is-focused" : ""
+            }`}
             style={{ left: x, top: y }}
             data-testid={`card-${ing.id}`}
             onPointerEnter={(e) => {
@@ -448,6 +474,39 @@ export function Canvas({
           visible viewport, never panned or zoomed away. */}
       {ingredients.length === 0 && emptyHint ? (
         <div className="canvas-empty">{emptyHint}</div>
+      ) : null}
+      {focusSummary ? (
+        <div className="canvas-readout" data-testid="connection-readout">
+          <p className="canvas-readout-title">
+            {focusSummary.focused.name || "Untitled ingredient"}
+          </p>
+          {focusSummary.connections.length === 0 ? (
+            <p className="canvas-readout-empty">
+              No shared aromas with the other ingredients yet.
+            </p>
+          ) : (
+            <ul className="canvas-readout-list">
+              {focusSummary.connections.map(({ other, shared }) => (
+                <li key={other.id}>
+                  <span className="canvas-readout-neighbor">
+                    {other.name || "Untitled ingredient"}
+                  </span>
+                  <span className="canvas-readout-types">
+                    {shared.map((type) => (
+                      <span key={type} className="canvas-readout-type">
+                        <span
+                          className="canvas-readout-dot"
+                          style={{ background: TYPE_COLORS.get(type) }}
+                        />
+                        {typeTitle(type)}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : null}
     </div>
   );

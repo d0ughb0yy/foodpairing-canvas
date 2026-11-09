@@ -32,7 +32,7 @@ describe("Canvas connection lines", () => {
       />,
     );
     const line = screen.getByTestId("conn-line");
-    expect(line).toHaveAttribute("stroke-width", "1.5");
+    expect(line).toHaveAttribute("stroke-width", "2.5");
     expect(line).not.toHaveAttribute("data-strong");
     const title = line.querySelector("title");
     expect(title?.textContent).toBe("Fruity");
@@ -128,8 +128,8 @@ describe("Canvas connection lines", () => {
     expect(caramel).not.toBeNull();
     expect(fruity!.getAttribute("stroke")).toBe("#f9b615");
     expect(caramel!.getAttribute("stroke")).toBe("#d76e25");
-    // Type-only sharing stays a thin line (the book's small dot).
-    expect(fruity!.getAttribute("stroke-width")).toBe("1.5");
+    // Lines are thick enough to trace on the pale canvas.
+    expect(fruity!.getAttribute("stroke-width")).toBe("2.5");
   });
 
   it("fans parallel flavor lines apart from each other", () => {
@@ -185,6 +185,7 @@ describe("Canvas connection lines", () => {
     );
 
     fireEvent.pointerEnter(screen.getByTestId("card-s-1"));
+    expect(screen.getByTestId("card-s-1")).toHaveClass("is-focused");
     const fruityLine = screen
       .getAllByTestId("conn-line")
       .find((l) => l.getAttribute("data-type") === "fruity");
@@ -195,9 +196,56 @@ describe("Canvas connection lines", () => {
     expect(caramelLine).toHaveAttribute("data-dim", "true");
 
     fireEvent.pointerLeave(screen.getByTestId("card-s-1"));
+    expect(screen.getByTestId("card-s-1")).not.toHaveClass("is-focused");
     for (const l of screen.getAllByTestId("conn-line")) {
       expect(l).toHaveAttribute("data-dim", "false");
     }
+  });
+
+  it("reads out the focused card's neighbours and shared aromas", () => {
+    render(
+      <Canvas
+        ingredients={[
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: true } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { fruity: true, caramellic: true } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { fruity: true } },
+        ]}
+        showConnections={true}
+        onChangeIngredient={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId("connection-readout")).toBeNull();
+    fireEvent.pointerEnter(screen.getByTestId("card-s-1"));
+
+    const readout = within(screen.getByTestId("connection-readout"));
+    expect(readout.getByText("strawberry")).toBeVisible();
+    expect(readout.getByText("chocolate")).toBeVisible();
+    expect(readout.getByText("melon")).toBeVisible();
+    expect(readout.getAllByText("Fruity")).toHaveLength(2);
+
+    fireEvent.pointerLeave(screen.getByTestId("card-s-1"));
+    expect(screen.queryByTestId("connection-readout")).toBeNull();
+  });
+
+  it("says so when the focused card shares nothing", () => {
+    render(
+      <Canvas
+        ingredients={[
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: true } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { roasted: true } },
+        ]}
+        showConnections={true}
+        onChangeIngredient={vi.fn()}
+      />,
+    );
+
+    fireEvent.pointerEnter(screen.getByTestId("card-s-1"));
+    expect(
+      within(screen.getByTestId("connection-readout")).getByText(
+        /no shared aromas/i,
+      ),
+    ).toBeVisible();
   });
 
   it("anchors lines at the card's top center", () => {
