@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { AROMA_TYPES, DESCRIPTORS } from "../config";
+import { AROMA_TYPES } from "../config";
 import type { AromaTypeId, Ingredient, Profile } from "../types";
 import "./IngredientCard.css";
 
@@ -12,16 +11,12 @@ export type CardProps = {
   onDelete?: () => void;
 };
 
-function setProfileType(
-  profile: Profile,
-  type: AromaTypeId,
-  descriptors: string[] | undefined,
-): Profile {
+function toggleProfileType(profile: Profile, type: AromaTypeId): Profile {
   const next: Profile = { ...profile };
-  if (descriptors === undefined) {
-    delete next[type];
+  if (next[type] === undefined) {
+    next[type] = true;
   } else {
-    next[type] = descriptors;
+    delete next[type];
   }
   return next;
 }
@@ -33,40 +28,6 @@ export function IngredientCard({
   onDelete,
 }: CardProps) {
   const { profile } = ingredient;
-  const [draft, setDraft] = useState<Partial<Record<AromaTypeId, string>>>({});
-
-  const toggleType = (type: AromaTypeId) => {
-    if (profile[type] === undefined) {
-      onChange({ profile: setProfileType(profile, type, []) });
-    } else {
-      onChange({ profile: setProfileType(profile, type, undefined) });
-    }
-  };
-
-  const addDescriptor = (type: AromaTypeId) => {
-    const raw = (draft[type] ?? "").trim();
-    if (raw === "") return;
-    const current = profile[type] ?? [];
-    if (current.some((d) => d.trim().toLowerCase() === raw.toLowerCase())) {
-      setDraft((d) => ({ ...d, [type]: "" }));
-      return;
-    }
-    onChange({
-      profile: setProfileType(profile, type, [...current, raw]),
-    });
-    setDraft((d) => ({ ...d, [type]: "" }));
-  };
-
-  const removeDescriptor = (type: AromaTypeId, index: number) => {
-    const current = profile[type] ?? [];
-    onChange({
-      profile: setProfileType(
-        profile,
-        type,
-        current.filter((_, i) => i !== index),
-      ),
-    });
-  };
 
   return (
     <div className="card">
@@ -112,61 +73,8 @@ export function IngredientCard({
                   ? { backgroundColor: color, borderColor: color }
                   : undefined
               }
-              onClick={() => toggleType(id)}
+              onClick={() => onChange({ profile: toggleProfileType(profile, id) })}
             />
-          );
-        })}
-      </div>
-      <div className="card-descriptors">
-        {AROMA_TYPES.map(({ id, label, color }) => {
-          if (profile[id] === undefined) return null;
-          const listId = `desc-${id}`;
-          const seed = DESCRIPTORS[id] ?? [];
-          return (
-            <div key={id} className="descriptor-group">
-              <span className="descriptor-type" style={{ color }}>
-                {label}
-              </span>
-              <span className="descriptor-chips">
-                {profile[id]!.map((d, i) => (
-                  <span
-                    key={`${d}-${i}`}
-                    className="descriptor-chip"
-                    style={{ borderColor: color }}
-                  >
-                    {d}
-                    <button
-                      type="button"
-                      aria-label={`remove ${d}`}
-                      onClick={() => removeDescriptor(id, i)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-                <input
-                  className="descriptor-input"
-                  style={{ borderColor: color }}
-                  placeholder={`Add ${label}…`}
-                  list={listId}
-                  value={draft[id] ?? ""}
-                  onChange={(e) =>
-                    setDraft((prev) => ({ ...prev, [id]: e.target.value }))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addDescriptor(id);
-                    }
-                  }}
-                />
-                <datalist id={listId}>
-                  {seed.map((d) => (
-                    <option key={d} value={d} />
-                  ))}
-                </datalist>
-              </span>
-            </div>
           );
         })}
       </div>

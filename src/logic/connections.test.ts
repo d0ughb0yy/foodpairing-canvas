@@ -1,70 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { hasStrongLink, sharedFlavors } from "./connections";
+import { sharedAromaTypes } from "./connections";
 
-describe("sharedFlavors", () => {
-  it("returns shared descriptors as trimmed lowercase strings", () => {
-    const result = sharedFlavors(
-      { fruity: ["Tropical"] },
-      { fruity: ["tropical "] },
-    );
-    expect(result).toEqual([
-      { type: "fruity", sharedDescriptors: ["tropical"] },
-    ]);
+describe("sharedAromaTypes", () => {
+  it("returns the aroma types both ingredients have enabled", () => {
+    expect(
+      sharedAromaTypes(
+        { fruity: true, citrus: true },
+        { citrus: true, fruity: true },
+      ),
+    ).toEqual(["fruity", "citrus"]);
   });
 
   it("returns [] when profiles share nothing", () => {
-    expect(sharedFlavors({ fruity: ["berry"] }, { spicy: ["clove"] })).toEqual(
-      [],
-    );
+    expect(sharedAromaTypes({ fruity: true }, { spicy: true })).toEqual([]);
   });
 
-  it("returns an empty descriptor list for a shared type with disjoint descriptors", () => {
-    const result = sharedFlavors(
-      { fruity: ["apple"] },
-      { fruity: ["berry"] },
-    );
-    expect(result).toEqual([{ type: "fruity", sharedDescriptors: [] }]);
+  it("orders results by the book's aroma type order", () => {
+    expect(
+      sharedAromaTypes(
+        { caramellic: true, citrus: true, fruity: true },
+        { fruity: true, citrus: true, caramellic: true },
+      ),
+    ).toEqual(["fruity", "citrus", "caramellic"]);
   });
 
-  it("counts types enabled with no descriptors on either side", () => {
-    const result = sharedFlavors({ herbal: [] }, { herbal: [] });
-    expect(result).toEqual([{ type: "herbal", sharedDescriptors: [] }]);
-  });
-
-  it("does not inflate shared descriptors from duplicates on one side", () => {
-    const result = sharedFlavors(
-      { fruity: ["berry", "berry", "berry"] },
-      { fruity: ["berry", "berry"] },
-    );
-    expect(result).toEqual([
-      { type: "fruity", sharedDescriptors: ["berry"] },
+  it("counts a type that is enabled on both sides", () => {
+    expect(sharedAromaTypes({ herbal: true }, { herbal: true })).toEqual([
+      "herbal",
     ]);
   });
 
-  it("orders entries by the book's aroma type order (fruity before citrus)", () => {
-    const result = sharedFlavors(
-      { citrus: ["lemon"], fruity: ["tropical"] },
-      { citrus: ["lemon"], fruity: ["tropical"] },
-    );
-    expect(result.map((f) => f.type)).toEqual(["fruity", "citrus"]);
-  });
-});
-
-describe("hasStrongLink", () => {
-  it("is false when only types (no descriptors) are shared", () => {
-    const flavors = sharedFlavors({ fruity: [] }, { fruity: ["apple"] });
-    expect(hasStrongLink(flavors)).toBe(false);
-  });
-
-  it("is true when a descriptor is shared", () => {
-    const flavors = sharedFlavors(
-      { caramellic: ["maple"] },
-      { caramellic: ["maple", "honey"] },
-    );
-    expect(hasStrongLink(flavors)).toBe(true);
-  });
-
-  it("is false for an empty list", () => {
-    expect(hasStrongLink([])).toBe(false);
+  it("ignores types enabled on only one side", () => {
+    expect(
+      sharedAromaTypes({ fruity: true, green: true }, { fruity: true }),
+    ).toEqual(["fruity"]);
   });
 });

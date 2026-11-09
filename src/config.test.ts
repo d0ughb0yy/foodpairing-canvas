@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AROMA_TYPES, DESCRIPTORS } from "./config";
+import { AROMA_TYPES } from "./config";
 
 const EXPECTED = [
   "fruity", "citrus", "floral", "green", "herbal", "vegetable",
@@ -22,32 +22,6 @@ describe("AROMA_TYPES", () => {
     for (const t of AROMA_TYPES) {
       expect(t.label).toMatch(/^[A-Z]/);
       expect(t.color).toMatch(/^#[0-9a-fA-F]{6}$/);
-    }
-  });
-});
-
-describe("DESCRIPTORS", () => {
-  it("seeds the ten core types with at least 4 descriptors each", () => {
-    const required = [
-      "fruity", "citrus", "floral", "green", "herbal", "vegetable",
-      "caramellic", "roasted", "nutty", "woody",
-    ] as const;
-    for (const id of required) {
-      expect(DESCRIPTORS[id]?.length).toBeGreaterThanOrEqual(4);
-    }
-  });
-
-  it("only uses known aroma type ids as keys", () => {
-    for (const id of Object.keys(DESCRIPTORS)) {
-      expect(EXPECTED).toContain(id);
-    }
-  });
-
-  it("stores all descriptors lowercase", () => {
-    for (const list of Object.values(DESCRIPTORS)) {
-      for (const d of list ?? []) {
-        expect(d).toBe(d.toLowerCase());
-      }
     }
   });
 });

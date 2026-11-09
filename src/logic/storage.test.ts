@@ -4,7 +4,7 @@ import { loadState, parseImport, saveState } from "./storage";
 
 const STATE: AppState = {
   ingredients: [
-    { id: "a-1", name: "strawberry", x: 40, y: 60, profile: { fruity: ["berry", "tropical"] } },
+    { id: "a-1", name: "strawberry", x: 40, y: 60, profile: { fruity: true } },
     { id: "b-2", name: "basil", x: 300, y: 20, profile: {} },
   ],
 };
@@ -16,7 +16,7 @@ const MULTI_STATE_TWO: MultiDishState = {
       id: "dish1",
       name: "Dish 1",
       ingredients: [
-        { id: "a-1", name: "strawberry", x: 40, y: 60, profile: { fruity: ["berry", "tropical"] } },
+        { id: "a-1", name: "strawberry", x: 40, y: 60, profile: { fruity: true } },
         { id: "b-2", name: "basil", x: 300, y: 20, profile: {} },
       ],
     },
@@ -242,6 +242,35 @@ describe("corrupt profiles, ids and unavailable storage", () => {
     });
   });
 
+  it("migrates legacy descriptor lists to enabled aroma types", () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({
+        dishes: [
+          {
+            id: "legacy-dish",
+            name: "Legacy",
+            ingredients: [
+              {
+                id: "i1",
+                name: "strawberry",
+                x: 0,
+                y: 0,
+                profile: { fruity: ["berry", "tropical"], green: [] },
+              },
+            ],
+          },
+        ],
+        activeDishId: "legacy-dish",
+      }),
+    );
+
+    expect(loadState().dishes[0].ingredients[0].profile).toEqual({
+      fruity: true,
+      green: true,
+    });
+  });
+
   it("treats stored states with duplicate dish ids as corrupt", () => {
     localStorage.setItem(
       KEY,
@@ -274,6 +303,31 @@ describe("exportJson/parseImport", () => {
     expect(result.dishes[0].id).toBe("dish1");
     expect(result.dishes[1].id).toBe("dish2");
     expect(result.activeDishId).toBe("dish1");
+  });
+
+  it("converts legacy descriptor lists to enabled types on import", () => {
+    const text = JSON.stringify({
+      dishes: [
+        {
+          id: "legacy",
+          name: "Legacy",
+          ingredients: [
+            {
+              id: "i1",
+              name: "strawberry",
+              x: 0,
+              y: 0,
+              profile: { fruity: ["berry"], green: [] },
+            },
+          ],
+        },
+      ],
+      activeDishId: "legacy",
+    });
+    expect(parseImport(text).dishes[0].ingredients[0].profile).toEqual({
+      fruity: true,
+      green: true,
+    });
   });
 
   it("rejects anything that is not a canvas file", () => {

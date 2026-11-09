@@ -4,4 +4,4 @@ A personal canvas for planning dishes per *The Art & Science of Foodpairing*: ad
 
 Run it: `npm run dev`, then open the shown URL (usually http://localhost:5173).
 
-Tune the aroma colors and descriptor autocomplete lists in `src/config.ts`. State autosaves in the browser; Export downloads a JSON file you can Import elsewhere.
+Tune the aroma colors in `src/config.ts`. State autosaves in the browser; Export downloads a JSON file you can Import elsewhere.

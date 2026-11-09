@@ -11,19 +11,19 @@ const FRUITY_PAIR: Ingredient[] = [
     name: "strawberry",
     x: 20,
     y: 30,
-    profile: { fruity: ["berry", "tropical"], green: ["cucumber"] },
+    profile: { fruity: true, green: true },
   },
   {
     id: "c-1",
     name: "chocolate",
     x: 300,
     y: 220,
-    profile: { caramellic: ["maple"], fruity: ["berry"] },
+    profile: { caramellic: true, fruity: true },
   },
 ];
 
 describe("Canvas connection lines", () => {
-  it("draws one strong line when a descriptor is shared", () => {
+  it("draws one line per shared aroma type", () => {
     render(
       <Canvas
         ingredients={FRUITY_PAIR}
@@ -32,25 +32,25 @@ describe("Canvas connection lines", () => {
       />,
     );
     const line = screen.getByTestId("conn-line");
-    expect(line).toHaveAttribute("data-strong", "true");
+    expect(line).toHaveAttribute("stroke-width", "1.5");
+    expect(line).not.toHaveAttribute("data-strong");
     const title = line.querySelector("title");
-    expect(title?.textContent).toContain("Fruity (berry)");
+    expect(title?.textContent).toBe("Fruity");
   });
 
-  it("draws one weak line when only a type is shared", () => {
+  it("draws a line regardless of which aroma words were once stored", () => {
     render(
       <Canvas
         ingredients={[
           FRUITY_PAIR[0],
-          { ...FRUITY_PAIR[1], profile: { caramellic: ["maple"], fruity: ["apple"] } },
+          { ...FRUITY_PAIR[1], profile: { caramellic: true, fruity: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}
       />,
     );
     const line = screen.getByTestId("conn-line");
-    expect(line).toHaveAttribute("data-strong", "false");
-    expect(line.querySelector("title")?.textContent).toContain("Fruity");
+    expect(line.querySelector("title")?.textContent).toBe("Fruity");
   });
 
   it("draws no lines when the connection toggle is off", () => {
@@ -69,7 +69,7 @@ describe("Canvas connection lines", () => {
       <Canvas
         ingredients={[
           FRUITY_PAIR[0],
-          { ...FRUITY_PAIR[1], profile: { herbal: ["mint"] } },
+          { ...FRUITY_PAIR[1], profile: { herbal: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}
@@ -84,7 +84,7 @@ describe("Canvas connection lines", () => {
         ingredients={[
           FRUITY_PAIR[0],
           FRUITY_PAIR[1],
-          { id: "m-1", name: "melon", x: 400, y: 60, profile: { fruity: ["tropical"] } },
+          { id: "m-1", name: "melon", x: 400, y: 60, profile: { fruity: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}
@@ -102,14 +102,14 @@ describe("Canvas connection lines", () => {
             name: "apple pie",
             x: 20,
             y: 30,
-            profile: { fruity: ["apple"], caramellic: ["honey"] },
+            profile: { fruity: true, caramellic: true },
           },
           {
             id: "b-1",
             name: "ice cream",
             x: 300,
             y: 220,
-            profile: { fruity: [], caramellic: [] },
+            profile: { fruity: true, caramellic: true },
           },
         ]}
         showConnections={true}
@@ -141,14 +141,14 @@ describe("Canvas connection lines", () => {
             name: "apple pie",
             x: 20,
             y: 30,
-            profile: { fruity: ["apple"], caramellic: ["honey"] },
+            profile: { fruity: true, caramellic: true },
           },
           {
             id: "b-1",
             name: "ice cream",
             x: 300,
             y: 220,
-            profile: { fruity: [], caramellic: [] },
+            profile: { fruity: true, caramellic: true },
           },
         ]}
         showConnections={true}
@@ -175,9 +175,9 @@ describe("Canvas connection lines", () => {
     render(
       <Canvas
         ingredients={[
-          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: ["tropical"] } },
-          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: ["maple"] } },
-          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: ["maple"], fruity: ["tropical"] } },
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: true } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: true } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: true, fruity: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}
@@ -324,14 +324,14 @@ describe("Canvas line layer extent", () => {
             name: "strawberry",
             x: 20,
             y: 30,
-            profile: { fruity: ["berry"] },
+            profile: { fruity: true },
           },
           {
             id: "f-1",
             name: "far berry",
             x: 3000,
             y: 2000,
-            profile: { fruity: ["berry"] },
+            profile: { fruity: true },
           },
         ]}
         showConnections={true}
@@ -559,9 +559,9 @@ describe("Canvas dragging", () => {
     render(
       <Canvas
         ingredients={[
-          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: ["tropical"] } },
-          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: ["maple"] } },
-          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: ["maple"], fruity: ["tropical"] } },
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: true } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: true } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: true, fruity: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}
@@ -594,9 +594,9 @@ describe("Canvas dragging", () => {
     render(
       <Canvas
         ingredients={[
-          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: ["tropical"] } },
-          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: ["maple"] } },
-          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: ["maple"], fruity: ["tropical"] } },
+          { id: "s-1", name: "strawberry", x: 20, y: 30, profile: { fruity: true } },
+          { id: "c-1", name: "chocolate", x: 320, y: 30, profile: { caramellic: true } },
+          { id: "m-1", name: "melon", x: 170, y: 240, profile: { caramellic: true, fruity: true } },
         ]}
         showConnections={true}
         onChangeIngredient={vi.fn()}

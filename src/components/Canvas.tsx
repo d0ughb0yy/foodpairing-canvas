@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AROMA_TYPES } from "../config";
-import { sharedFlavors } from "../logic/connections";
+import { sharedAromaTypes } from "../logic/connections";
 import type { Ingredient } from "../types";
 import IngredientCard from "./IngredientCard";
 import "./Canvas.css";
@@ -28,11 +28,8 @@ const TYPE_COLORS: ReadonlyMap<string, string> = new Map(
   AROMA_TYPES.map((t) => [t.id, t.color]),
 );
 
-function flavorTitle(f: { type: string; sharedDescriptors: string[] }) {
-  const label = TYPE_LABELS.get(f.type) ?? f.type;
-  return f.sharedDescriptors.length > 0
-    ? `${label} (${f.sharedDescriptors.join(", ")})`
-    : label;
+function typeTitle(type: string) {
+  return TYPE_LABELS.get(type) ?? type;
 }
 
 // Perpendicular offset between parallel flavor lines of the same pair.
@@ -328,7 +325,7 @@ export function Canvas({
           dragId === ing.id && dragPos ? dragPos : { x: ing.x, y: ing.y };
         const apos = posOf(a);
         const bpos = posOf(b);
-        const shared = sharedFlavors(a.profile, b.profile);
+        const shared = sharedAromaTypes(a.profile, b.profile);
         if (shared.length === 0) continue;
 
         const ax = apos.x + ANCHOR_X;
@@ -347,23 +344,21 @@ export function Canvas({
         const dim =
           hoveredId !== null && hoveredId !== a.id && hoveredId !== b.id;
 
-        shared.forEach((flavor, fi) => {
+        shared.forEach((type, fi) => {
           const offset = (fi - (shared.length - 1) / 2) * FAN_STEP;
           const cx = mx + px * offset;
           const cy = my + py * offset;
-          const strong = flavor.sharedDescriptors.length > 0;
           lines.push(
             <path
-              key={`${a.id}--${b.id}--${flavor.type}`}
+              key={`${a.id}--${b.id}--${type}`}
               d={`M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`}
-              stroke={TYPE_COLORS.get(flavor.type) ?? "#8a8f98"}
-              strokeWidth={strong ? 3 : 1.5}
-              data-strong={strong ? "true" : "false"}
-              data-type={flavor.type}
+              stroke={TYPE_COLORS.get(type) ?? "#8a8f98"}
+              strokeWidth={1.5}
+              data-type={type}
               data-dim={dim ? "true" : "false"}
               data-testid="conn-line"
             >
-              <title>{flavorTitle(flavor)}</title>
+              <title>{typeTitle(type)}</title>
             </path>,
           );
         });

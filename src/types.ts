@@ -14,8 +14,8 @@ export type AromaTypeId =
   | "animal"
   | "chemical";
 
-// Key present = type enabled; value = descriptors (may be empty).
-export type Profile = Partial<Record<AromaTypeId, string[]>>;
+// Key present = aroma type enabled.
+export type Profile = Partial<Record<AromaTypeId, true>>;
 
 export type Ingredient = {
   id: string;
@@ -26,11 +26,6 @@ export type Ingredient = {
 };
 
 export type AppState = { ingredients: Ingredient[] };
-
-export type SharedFlavor = {
-  type: AromaTypeId;
-  sharedDescriptors: string[];
-};
 
 export type Dish = {
   id: string;

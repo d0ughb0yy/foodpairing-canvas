@@ -1,5 +1,11 @@
 import { AROMA_TYPES } from "../config";
-import type { AppState, Profile, Dish, MultiDishState } from "../types";
+import type {
+  AppState,
+  AromaTypeId,
+  Profile,
+  Dish,
+  MultiDishState,
+} from "../types";
 
 const STORAGE_KEY = "foodpairing-canvas-v1";
 
@@ -9,13 +15,29 @@ export function isValidProfile(value: unknown): value is Profile {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
-  for (const [key, list] of Object.entries(value)) {
+  for (const [key, enabled] of Object.entries(value)) {
     if (!AROMA_IDS.has(key)) return false;
-    if (!Array.isArray(list) || list.some((d) => typeof d !== "string")) {
+    // `true` is the current shape; string arrays are the pre-simplification
+    // descriptor lists, still accepted so old saves and exports migrate.
+    if (
+      enabled !== true &&
+      (!Array.isArray(enabled) || enabled.some((d) => typeof d !== "string"))
+    ) {
       return false;
     }
   }
   return true;
+}
+
+function normalizeProfile(value: unknown): Profile {
+  const profile: Profile = {};
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return profile;
+  }
+  for (const key of Object.keys(value)) {
+    if (AROMA_IDS.has(key)) profile[key as AromaTypeId] = true;
+  }
+  return profile;
 }
 
 function hasValidProfile(value: { profile: unknown }): boolean {
@@ -54,7 +76,7 @@ function normalizeAppState(parsed: AppState): AppState {
   return {
     ingredients: parsed.ingredients.map((i) => ({
       ...i,
-      profile: i.profile ?? {},
+      profile: normalizeProfile(i.profile),
     })),
   };
 }
@@ -109,7 +131,7 @@ function normalizeDish(dish: unknown): Dish {
     ...dish,
     ingredients: dish.ingredients.map((i) => ({
       ...i,
-      profile: i.profile ?? {},
+      profile: normalizeProfile(i.profile),
     })),
   };
 }
